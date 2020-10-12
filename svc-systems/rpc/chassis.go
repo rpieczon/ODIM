@@ -18,32 +18,39 @@ package rpc
 import (
 	"context"
 	"encoding/json"
+	"github.com/ODIM-Project/ODIM/svc-systems/chassis"
 	"log"
 	"net/http"
 
-	"github.com/ODIM-Project/ODIM/lib-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	chassisproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/chassis"
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
-	"github.com/ODIM-Project/ODIM/lib-utilities/response"
-	"github.com/ODIM-Project/ODIM/svc-systems/chassis"
+	"github.com/ODIM-Project/ODIM/svc-plugin-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/svc-systems/scommon"
 )
 
+func NewChassisRPC(
+	authWrapper func(sessionToken string, privileges, oemPrivileges []string) (int32, string),
+	getCollectionHandler chassis.GetCollectionHandler) *ChassisRPC {
+
+	return &ChassisRPC{
+		IsAuthorizedRPC:      authWrapper,
+		GetCollectionHandler: getCollectionHandler,
+	}
+}
+
 // ChassisRPC struct helps to register service
 type ChassisRPC struct {
+	GetCollectionHandler chassis.GetCollectionHandler
 	IsAuthorizedRPC func(sessionToken string, privileges, oemPrivileges []string) response.RPC
 }
 
-func (cha *ChassisRPC) CreateChassis(ctx context.Context, req *chassisproto.CreateChassisRequest, resp *chassisproto.GetChassisResponse) error {
-	r := auth(req.SessionToken, func() response.RPC {
-		return createChassis(req)
+func (cha *ChassisRPC) CreateChassis(_ context.Context, req *chassisproto.CreateChassisRequest, resp *chassisproto.GetChassisResponse) error {
+	r := auth(cha.IsAuthorizedRPC, req.SessionToken, func() response.RPC {
+		return chassis.Create(req)
 	})
 
-	resp.Header = r.Header
-	resp.Body = generateResponse(r.Body)
-	resp.StatusCode = r.StatusCode
-	return nil
+	return rewrite(r, resp)
 }
 
 //GetChassisResource defines the operations which handles the RPC request response
@@ -60,7 +67,7 @@ func (cha *ChassisRPC) GetChassisResource(ctx context.Context, req *chassisproto
 		resp.StatusCode = authStatusCode
 		resp.StatusMessage = authStatusMessage
 		rpcResp := common.GeneralError(authStatusCode, authStatusMessage, errorMessage, nil, nil)
-		resp.Body = generateResponse(rpcResp.Body)
+		resp.Body = jsonMarshal(rpcResp.Body)
 		resp.Header = rpcResp.Header
 		log.Printf(errorMessage)
 		return nil
@@ -74,33 +81,19 @@ func (cha *ChassisRPC) GetChassisResource(ctx context.Context, req *chassisproto
 	resp.Header = data.Header
 	resp.StatusCode = data.StatusCode
 	resp.StatusMessage = data.StatusMessage
-	resp.Body = generateResponse(data.Body)
+	resp.Body = jsonMarshal(data.Body)
 	return nil
 }
 
-//GetChassisCollection defines the operation which hasnled the RPC request response
+// GetChassisCollection defines the operation which handles the RPC request response
 // for getting all the server chassis added.
 // Retrieves all the keys with table name ChassisCollection and create the response
 // to send back to requested user.
-func (cha *ChassisRPC) GetChassisCollection(ctx context.Context, req *chassisproto.GetChassisRequest, resp *chassisproto.GetChassisResponse) error {
-	sessionToken := req.SessionToken
-	authStatusCode, authStatusMessage := cha.IsAuthorizedRPC(sessionToken, []string{common.PrivilegeLogin}, []string{})
-	if authStatusCode != http.StatusOK {
-		errorMessage := "error while trying to authenticate session"
-		resp.StatusCode = authStatusCode
-		resp.StatusMessage = authStatusMessage
-		rpcResp := common.GeneralError(authStatusCode, authStatusMessage, errorMessage, nil, nil)
-		resp.Body = generateResponse(rpcResp.Body)
-		resp.Header = rpcResp.Header
-		log.Printf(errorMessage)
-		return nil
-	}
-	data := chassis.GetChassisCollection(req)
-	resp.Header = data.Header
-	resp.StatusCode = data.StatusCode
-	resp.StatusMessage = data.StatusMessage
-	resp.Body = generateResponse(data.Body)
-	return nil
+func (cha *ChassisRPC) GetChassisCollection(_ context.Context, req *chassisproto.GetChassisRequest, resp *chassisproto.GetChassisResponse) error {
+	r := auth(cha.IsAuthorizedRPC, req.SessionToken, func() response.RPC {
+		return cha.GetCollectionHandler.Handle()
+	})
+	return rewrite(r, resp)
 }
 
 //GetChassisInfo defines the operations which handles the RPC request response
@@ -117,7 +110,7 @@ func (cha *ChassisRPC) GetChassisInfo(ctx context.Context, req *chassisproto.Get
 		resp.StatusCode = authStatusCode
 		resp.StatusMessage = authStatusMessage
 		rpcResp := common.GeneralError(authStatusCode, authStatusMessage, errorMessage, nil, nil)
-		resp.Body = generateResponse(rpcResp.Body)
+		resp.Body = jsonMarshal(rpcResp.Body)
 		resp.Header = rpcResp.Header
 		log.Printf(errorMessage)
 		return nil
@@ -126,11 +119,19 @@ func (cha *ChassisRPC) GetChassisInfo(ctx context.Context, req *chassisproto.Get
 	resp.Header = data.Header
 	resp.StatusCode = data.StatusCode
 	resp.StatusMessage = data.StatusMessage
-	resp.Body = generateResponse(data.Body)
+	resp.Body = jsonMarshal(data.Body)
 	return nil
 }
 
-func generateResponse(input interface{}) []byte {
+func rewrite(source response.RPC, target *chassisproto.GetChassisResponse) error {
+	target.Header = source.Header
+	target.StatusCode = source.StatusCode
+	target.StatusMessage = source.StatusMessage
+	target.Body = jsonMarshal(source.Body)
+	return nil
+}
+
+func jsonMarshal(input interface{}) []byte {
 	if bytes, alreadyBytes := input.([]byte); alreadyBytes {
 		return bytes
 	}
