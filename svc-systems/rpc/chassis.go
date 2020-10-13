@@ -31,18 +31,21 @@ import (
 
 func NewChassisRPC(
 	authWrapper func(sessionToken string, privileges, oemPrivileges []string) (int32, string),
-	getCollectionHandler chassis.GetCollectionHandler) *ChassisRPC {
+	getCollectionHandler *chassis.GetCollectionHandler,
+	getHandler *chassis.Get) *ChassisRPC {
 
 	return &ChassisRPC{
 		IsAuthorizedRPC:      authWrapper,
 		GetCollectionHandler: getCollectionHandler,
+		GetHandler:           getHandler,
 	}
 }
 
 // ChassisRPC struct helps to register service
 type ChassisRPC struct {
-	GetCollectionHandler chassis.GetCollectionHandler
-	IsAuthorizedRPC func(sessionToken string, privileges, oemPrivileges []string) response.RPC
+	IsAuthorizedRPC      func(sessionToken string, privileges, oemPrivileges []string) (int32, string)
+	GetCollectionHandler *chassis.GetCollectionHandler
+	GetHandler           *chassis.Get
 }
 
 func (cha *ChassisRPC) CreateChassis(_ context.Context, req *chassisproto.CreateChassisRequest, resp *chassisproto.GetChassisResponse) error {
@@ -50,7 +53,8 @@ func (cha *ChassisRPC) CreateChassis(_ context.Context, req *chassisproto.Create
 		return chassis.Create(req)
 	})
 
-	return rewrite(r, resp)
+	rewrite(r, resp)
+	return nil
 }
 
 //GetChassisResource defines the operations which handles the RPC request response
@@ -93,7 +97,8 @@ func (cha *ChassisRPC) GetChassisCollection(_ context.Context, req *chassisproto
 	r := auth(cha.IsAuthorizedRPC, req.SessionToken, func() response.RPC {
 		return cha.GetCollectionHandler.Handle()
 	})
-	return rewrite(r, resp)
+	addDefaultHeaders(rewrite(r, resp))
+	return nil
 }
 
 //GetChassisInfo defines the operations which handles the RPC request response
@@ -103,32 +108,31 @@ func (cha *ChassisRPC) GetChassisCollection(_ context.Context, req *chassisproto
 // The function uses IsAuthorized of util-lib to validate the session
 // which is present in the request.
 func (cha *ChassisRPC) GetChassisInfo(ctx context.Context, req *chassisproto.GetChassisRequest, resp *chassisproto.GetChassisResponse) error {
-	sessionToken := req.SessionToken
-	authStatusCode, authStatusMessage := cha.IsAuthorizedRPC(sessionToken, []string{common.PrivilegeLogin}, []string{})
-	if authStatusCode != http.StatusOK {
-		errorMessage := "error while trying to authenticate session"
-		resp.StatusCode = authStatusCode
-		resp.StatusMessage = authStatusMessage
-		rpcResp := common.GeneralError(authStatusCode, authStatusMessage, errorMessage, nil, nil)
-		resp.Body = jsonMarshal(rpcResp.Body)
-		resp.Header = rpcResp.Header
-		log.Printf(errorMessage)
-		return nil
-	}
-	data := chassis.GetChassisInfo(req)
-	resp.Header = data.Header
-	resp.StatusCode = data.StatusCode
-	resp.StatusMessage = data.StatusMessage
-	resp.Body = jsonMarshal(data.Body)
+	r := auth(cha.IsAuthorizedRPC, req.SessionToken, func() response.RPC {
+		return cha.GetHandler.Handle(req)
+	})
+
+	addDefaultHeaders(rewrite(r, resp))
 	return nil
 }
 
-func rewrite(source response.RPC, target *chassisproto.GetChassisResponse) error {
+func rewrite(source response.RPC, target *chassisproto.GetChassisResponse) *chassisproto.GetChassisResponse {
 	target.Header = source.Header
 	target.StatusCode = source.StatusCode
 	target.StatusMessage = source.StatusMessage
 	target.Body = jsonMarshal(source.Body)
-	return nil
+	return target
+}
+
+func addDefaultHeaders(target *chassisproto.GetChassisResponse) {
+	target.Header = map[string]string{
+		"Allow":             `"GET"`,
+		"Cache-Control":     "no-cache",
+		"Connection":        "keep-alive",
+		"Content-type":      "application/json; charset=utf-8",
+		"Transfer-Encoding": "chunked",
+		"OData-Version":     "4.0",
+	}
 }
 
 func jsonMarshal(input interface{}) []byte {
