@@ -18,14 +18,14 @@ package rpc
 import (
 	"context"
 	"encoding/json"
-	"github.com/ODIM-Project/ODIM/svc-systems/chassis"
 	"log"
 	"net/http"
 
+	"github.com/ODIM-Project/ODIM/lib-rest-client/pmbhandle"
 	"github.com/ODIM-Project/ODIM/lib-utilities/common"
 	chassisproto "github.com/ODIM-Project/ODIM/lib-utilities/proto/chassis"
 	"github.com/ODIM-Project/ODIM/lib-utilities/response"
-	"github.com/ODIM-Project/ODIM/svc-plugin-rest-client/pmbhandle"
+	"github.com/ODIM-Project/ODIM/svc-systems/chassis"
 	"github.com/ODIM-Project/ODIM/svc-systems/scommon"
 )
 
@@ -171,11 +171,4 @@ func jsonMarshal(input interface{}) []byte {
 		log.Println("error in unmarshalling response object from util-libs", err.Error())
 	}
 	return bytes
-}
-
-func fillChassisProtoResponse(resp *chassisproto.GetChassisResponse, data response.RPC) {
-	resp.StatusCode = data.StatusCode
-	resp.StatusMessage = data.StatusMessage
-	resp.Body = generateResponse(data.Body)
-	resp.Header = data.Header
 }
