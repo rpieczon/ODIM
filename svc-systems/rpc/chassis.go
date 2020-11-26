@@ -31,7 +31,7 @@ import (
 )
 
 func NewChassisRPC(
-	authWrapper func(sessionToken string, privileges, oemPrivileges []string) (int32, string),
+	authWrapper func(sessionToken string, privileges, oemPrivileges []string) response.RPC,
 	createHandler *chassis.Create,
 	getCollectionHandler *chassis.GetCollection,
 	deleteHandler *chassis.Delete,
@@ -50,7 +50,7 @@ func NewChassisRPC(
 
 // ChassisRPC struct helps to register service
 type ChassisRPC struct {
-	IsAuthorizedRPC      func(sessionToken string, privileges, oemPrivileges []string) (int32, string)
+	IsAuthorizedRPC      func(sessionToken string, privileges, oemPrivileges []string) response.RPC
 	GetCollectionHandler *chassis.GetCollection
 	GetHandler           *chassis.Get
 	DeleteHandler        *chassis.Delete
@@ -93,15 +93,10 @@ func (cha *ChassisRPC) CreateChassis(_ context.Context, req *chassisproto.Create
 // which is present in the request.
 func (cha *ChassisRPC) GetChassisResource(ctx context.Context, req *chassisproto.GetChassisRequest, resp *chassisproto.GetChassisResponse) error {
 	sessionToken := req.SessionToken
-	authStatusCode, authStatusMessage := cha.IsAuthorizedRPC(sessionToken, []string{common.PrivilegeLogin}, []string{})
-	if authStatusCode != http.StatusOK {
-		errorMessage := "error while trying to authenticate session"
-		resp.StatusCode = authStatusCode
-		resp.StatusMessage = authStatusMessage
-		rpcResp := common.GeneralError(authStatusCode, authStatusMessage, errorMessage, nil, nil)
-		resp.Body = jsonMarshal(rpcResp.Body)
-		resp.Header = rpcResp.Header
-		log.Printf(errorMessage)
+	authResp := cha.IsAuthorizedRPC(sessionToken, []string{common.PrivilegeLogin}, []string{})
+	if authResp.StatusCode != http.StatusOK {
+		log.Println("error while trying to authenticate session")
+		rewrite(authResp, resp)
 		return nil
 	}
 	var pc = chassis.PluginContact{
@@ -110,10 +105,7 @@ func (cha *ChassisRPC) GetChassisResource(ctx context.Context, req *chassisproto
 		GetPluginStatus: scommon.GetPluginStatus,
 	}
 	data := pc.GetChassisResource(req)
-	resp.Header = data.Header
-	resp.StatusCode = data.StatusCode
-	resp.StatusMessage = data.StatusMessage
-	resp.Body = jsonMarshal(data.Body)
+	rewrite(data, resp)
 	return nil
 }
 
