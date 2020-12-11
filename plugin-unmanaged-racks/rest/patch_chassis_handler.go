@@ -39,10 +39,10 @@ type rackUpdateRequest struct {
 	}
 }
 
-func NewChassisUpdateHandler(cm *db.ConnectionManager, odimHttpClient *redfish.HttpClient) context.Handler {
+func newPatchChassisHandler(cm *db.ConnectionManager, odimHTTPClient *redfish.HTTPClient) context.Handler {
 	return (&chassisUpdateHandler{
 		cm:            cm,
-		redfishClient: redfish.NewResponseWrappingClient(odimHttpClient),
+		redfishClient: redfish.NewResponseWrappingClient(odimHTTPClient),
 	}).handle
 }
 
@@ -55,7 +55,7 @@ func (c *chassisUpdateHandler) handle(ctx context.Context) {
 	rur, err := decodeRequestBody(ctx)
 	if err != nil {
 		ctx.StatusCode(http.StatusBadRequest)
-		ctx.JSON(redfish.NewError().AddExtendedInfo(redfish.NewMalformedJsonMsg(err.Error())))
+		ctx.JSON(redfish.NewError().AddExtendedInfo(redfish.NewMalformedJSONMsg(err.Error())))
 		return
 	}
 

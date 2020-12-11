@@ -27,10 +27,10 @@ type Collection struct {
 	MembersCount int    `json:"Members@odata.count"`
 }
 
-func NewCollection(odataId, odataType string, members ...Link) Collection {
+func NewCollection(odataID, odataType string, members ...Link) Collection {
 	return Collection{
 		OdataContext: "/ODIM/v1/$metadata" + odataType,
-		OdataID:      odataId,
+		OdataID:      odataID,
 		OdataType:    odataType,
 		Members:      append([]Link{}, members...),
 		MembersCount: len(members),

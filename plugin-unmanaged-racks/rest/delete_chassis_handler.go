@@ -30,15 +30,15 @@ import (
 	"github.com/kataras/iris/v12/context"
 )
 
-func NewChassisDeletionHandler(cm *db.ConnectionManager) context.Handler {
-	return (&chassisDeletionHandler{cm}).handle
+func newDeleteChassisHandler(cm *db.ConnectionManager) context.Handler {
+	return (&deleteChassisHandler{cm}).handle
 }
 
-type chassisDeletionHandler struct {
+type deleteChassisHandler struct {
 	connectionManager *db.ConnectionManager
 }
 
-func (c *chassisDeletionHandler) handle(ctx context.Context) {
+func (c *deleteChassisHandler) handle(ctx context.Context) {
 	requestedChassis := ctx.Request().RequestURI
 	requestedChassisKey := db.CreateKey("Chassis", requestedChassis)
 
@@ -94,8 +94,8 @@ func (c *chassisDeletionHandler) handle(ctx context.Context) {
 					return fmt.Errorf("del: %s error: %w", db.CreateContainedInKey("Chassis", requestedChassis), err)
 				}
 
-				parentContainsId := db.CreateContainsKey("Chassis", chassisToBeDeleted.Links.ContainedBy[0].Oid).String()
-				_, err = pipe.SRem(ctx, parentContainsId, requestedChassis).Result()
+				parentContainsID := db.CreateContainsKey("Chassis", chassisToBeDeleted.Links.ContainedBy[0].Oid).String()
+				_, err = pipe.SRem(ctx, parentContainsID, requestedChassis).Result()
 				return err
 			})
 			return err
@@ -118,7 +118,7 @@ func (c *chassisDeletionHandler) handle(ctx context.Context) {
 	ctx.StatusCode(http.StatusNoContent)
 }
 
-func (c *chassisDeletionHandler) createValidator(chassis *redfish.Chassis) *redfish.CompositeValidator {
+func (c *deleteChassisHandler) createValidator(chassis *redfish.Chassis) *redfish.CompositeValidator {
 	return &redfish.CompositeValidator{
 		redfish.Validator{
 			ValidationRule: func() bool {

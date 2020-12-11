@@ -35,13 +35,13 @@ func NewConnectionManager(redisAddress, sentinelMasterName string) *ConnectionMa
 				Addr: redisAddress,
 			}),
 		}
-	} else {
-		return &ConnectionManager{
-			redis.NewFailoverClient(&redis.FailoverOptions{
-				MasterName:    sentinelMasterName,
-				SentinelAddrs: []string{redisAddress},
-			}),
-		}
+	}
+
+	return &ConnectionManager{
+		redis.NewFailoverClient(&redis.FailoverOptions{
+			MasterName:    sentinelMasterName,
+			SentinelAddrs: []string{redisAddress},
+		}),
 	}
 }
 
@@ -99,7 +99,7 @@ func (k Key) WithWildcard() Key {
 	return k + "*"
 }
 
-func (k Key) Id() string {
+func (k Key) ID() string {
 	return k.TrimWildcard().TrimPrefix().String()
 }
 

@@ -36,7 +36,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-var TEST_CONFIG = config.PluginConfig{
+var testConfig = config.PluginConfig{
 	RootServiceUUID: "99999999-9999-9999-9999-999999999999",
 	UserName:        "admin",
 	Password:        "O01bKrP7Tzs7YoO3YvQt4pRa2J_R6HI34ZfP4MxbqNIYAVQVt2ewGXmhjvBfzMifM7bHFccXKGmdHvj3hY44Hw==",
@@ -514,7 +514,7 @@ func (o *odimstub) Run() {
 		))
 	})
 
-	odimurl, err := url.Parse(TEST_CONFIG.OdimNBUrl)
+	odimurl, err := url.Parse(testConfig.OdimNBUrl)
 	if err != nil {
 		panic(err)
 	}
@@ -538,9 +538,9 @@ func createTestApplication() (*iris.Application, *miniredis.Miniredis) {
 
 	cm := db.NewConnectionManager(r.Addr(), "")
 
-	odimraHttpClient := redfish.NewHttpClient(
-		redfish.BaseURL(TEST_CONFIG.OdimNBUrl),
+	odimraHTTPClient := redfish.NewHTTPClient(
+		redfish.BaseURL(testConfig.OdimNBUrl),
 		redfish.InsecureSkipVerifyTransport,
 	)
-	return createApplication(&TEST_CONFIG, cm, odimraHttpClient), r
+	return createApplication(&testConfig, cm, odimraHTTPClient), r
 }

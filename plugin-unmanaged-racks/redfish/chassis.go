@@ -45,7 +45,7 @@ type Chassis struct {
 func ShapeChassis(ch *Chassis) *Chassis {
 	ch.Otype = "#Chassis.v1_14_0.Chassis"
 	ch.Ocontext = "/redfish/v1/$metadata#Chassis.Chassis"
-	ch.ID = generateChassisId(ch.Name)
+	ch.ID = generateChassisID(ch.Name)
 	ch.Oid = "/ODIM/v1/Chassis/" + ch.ID
 	ch.Status = StatusEnabledOk
 	ch.Links.ComputerSystems = []Link{}
@@ -53,7 +53,7 @@ func ShapeChassis(ch *Chassis) *Chassis {
 	return ch
 }
 
-func generateChassisId(name string) string {
+func generateChassisID(name string) string {
 	return uuid.NewV5(unmanagedChassisBaseUUID, name).String()
 }
 

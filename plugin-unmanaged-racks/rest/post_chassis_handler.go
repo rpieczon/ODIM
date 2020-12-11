@@ -32,16 +32,16 @@ import (
 	"github.com/kataras/iris/v12/context"
 )
 
-func NewCreateChassisHandlerHandler(cm *db.ConnectionManager, pc *config.PluginConfig) context.Handler {
-	return (&createChassisHandler{cm, pc}).handle
+func newPostChassisHandler(cm *db.ConnectionManager, pc *config.PluginConfig) context.Handler {
+	return (&postChassisHandler{cm, pc}).handle
 }
 
-type createChassisHandler struct {
+type postChassisHandler struct {
 	cm *db.ConnectionManager
 	pc *config.PluginConfig
 }
 
-func (c *createChassisHandler) createValidator(chassis *redfish.Chassis) *redfish.CompositeValidator {
+func (c *postChassisHandler) createValidator(chassis *redfish.Chassis) *redfish.CompositeValidator {
 	return &redfish.CompositeValidator{
 		redfish.Validator{
 			ValidationRule: func() bool {
@@ -119,12 +119,12 @@ func (c *createChassisHandler) createValidator(chassis *redfish.Chassis) *redfis
 	}
 }
 
-func (c *createChassisHandler) handle(ctx context.Context) {
+func (c *postChassisHandler) handle(ctx context.Context) {
 	requestedChassis := new(redfish.Chassis)
 	err := ctx.ReadJSON(requestedChassis)
 	if err != nil {
 		ctx.StatusCode(http.StatusBadRequest)
-		ctx.JSON(redfish.NewError().AddExtendedInfo(redfish.NewMalformedJsonMsg(err.Error())))
+		ctx.JSON(redfish.NewError().AddExtendedInfo(redfish.NewMalformedJSONMsg(err.Error())))
 		return
 	}
 
@@ -134,14 +134,14 @@ func (c *createChassisHandler) handle(ctx context.Context) {
 		return
 	}
 
-	toBeCreatedChassisId, toBeCreatedBody, parentChassisKey, err := prepareChassisCreationParams(redfish.ShapeChassis(requestedChassis))
+	toBeCreatedChassisID, toBeCreatedBody, parentChassisKey, err := prepareChassisCreationParams(redfish.ShapeChassis(requestedChassis))
 	if err != nil {
 		return
 	}
 
 	sctx := stdCtx.TODO()
 	err = c.cm.DAO().Watch(sctx, func(tx *redis.Tx) error {
-		exists, err := tx.Exists(sctx, toBeCreatedChassisId).Result()
+		exists, err := tx.Exists(sctx, toBeCreatedChassisID).Result()
 		if err != nil {
 			return err
 		}
@@ -151,8 +151,8 @@ func (c *createChassisHandler) handle(ctx context.Context) {
 
 		_, err = tx.TxPipelined(sctx, func(pipe redis.Pipeliner) error {
 			//create chassis
-			if _, err = pipe.SetNX(sctx, toBeCreatedChassisId, toBeCreatedBody, 0).Result(); err != nil {
-				return fmt.Errorf("setnx: %s error: %w", toBeCreatedChassisId, err)
+			if _, err = pipe.SetNX(sctx, toBeCreatedChassisID, toBeCreatedBody, 0).Result(); err != nil {
+				return fmt.Errorf("setnx: %s error: %w", toBeCreatedChassisID, err)
 			}
 			//commit transaction if requested chassis has not parent
 			if parentChassisKey == nil {
@@ -164,15 +164,15 @@ func (c *createChassisHandler) handle(ctx context.Context) {
 				return fmt.Errorf("sadd: %s error: %w", parentChassisKey, err)
 			}
 
-			toBeCreatedContainedInId := db.CreateContainedInKey("Chassis", requestedChassis.Oid).String()
-			if _, err = pipe.Set(sctx, toBeCreatedContainedInId, parentChassisKey.Id(), 0).Result(); err != nil {
-				return fmt.Errorf("set: %s error: %w", toBeCreatedContainedInId, err)
+			toBeCreatedContainedInID := db.CreateContainedInKey("Chassis", requestedChassis.Oid).String()
+			if _, err = pipe.Set(sctx, toBeCreatedContainedInID, parentChassisKey.ID(), 0).Result(); err != nil {
+				return fmt.Errorf("set: %s error: %w", toBeCreatedContainedInID, err)
 			}
 
 			return nil
 		})
 		return err
-	}, toBeCreatedChassisId)
+	}, toBeCreatedChassisID)
 
 	switch err {
 	case nil:
@@ -188,8 +188,8 @@ func (c *createChassisHandler) handle(ctx context.Context) {
 	}
 }
 
-func prepareChassisCreationParams(rc *redfish.Chassis) (chassisId string, chassisBody []byte, parentChassisId *db.Key, err error) {
-	chassisId = db.CreateKey("Chassis", rc.Oid).String()
+func prepareChassisCreationParams(rc *redfish.Chassis) (chassisID string, chassisBody []byte, parentChassisID *db.Key, err error) {
+	chassisID = db.CreateKey("Chassis", rc.Oid).String()
 
 	chassisBody, err = json.Marshal(rc)
 	if err != nil {
@@ -198,7 +198,7 @@ func prepareChassisCreationParams(rc *redfish.Chassis) (chassisId string, chassi
 
 	if len(rc.Links.ContainedBy) > 0 {
 		k := db.CreateContainsKey("Chassis", rc.Links.ContainedBy[0].Oid)
-		parentChassisId = &k
+		parentChassisID = &k
 	}
 
 	return

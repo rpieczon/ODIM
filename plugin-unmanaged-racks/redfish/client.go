@@ -30,23 +30,23 @@ import (
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/config"
 )
 
-type HttpClient struct {
+type HTTPClient struct {
 	baseURL            string
 	httpc              *http.Client
 	requestDecorators  []requestDecorator
 	responseDecorators []responseDecorator
 }
 
-type Option func(rc *HttpClient)
+type Option func(rc *HTTPClient)
 
 func BaseURL(baseURL string) Option {
-	return func(rc *HttpClient) {
+	return func(rc *HTTPClient) {
 		rc.baseURL = baseURL
 	}
 }
 
-//!!!This function is intended to be use only in tests.!!!
-func InsecureSkipVerifyTransport(c *HttpClient) {
+// InsecureSkipVerifyTransport function is intended to be used only in tests!!!
+func InsecureSkipVerifyTransport(c *HTTPClient) {
 	c.httpc.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{
 			InsecureSkipVerify: true,
@@ -54,8 +54,8 @@ func InsecureSkipVerifyTransport(c *HttpClient) {
 	}
 }
 
-func HttpTransport(c *config.PluginConfig) Option {
-	return func(rc *HttpClient) {
+func HTTPTransport(c *config.PluginConfig) Option {
+	return func(rc *HTTPClient) {
 		caCert, err := ioutil.ReadFile(c.PKIRootCAPath)
 		if err != nil {
 			panic(err)
@@ -77,8 +77,8 @@ func HttpTransport(c *config.PluginConfig) Option {
 	}
 }
 
-func NewHttpClient(opts ...Option) *HttpClient {
-	c := &HttpClient{
+func NewHTTPClient(opts ...Option) *HTTPClient {
+	c := &HTTPClient{
 		httpc: &http.Client{},
 		requestDecorators: []requestDecorator{
 			&basicAuth{
@@ -106,7 +106,7 @@ type responseDecorator interface {
 	decorate(response *http.Response) error
 }
 
-func (h *HttpClient) createURL(uri string) (*url.URL, error) {
+func (h *HTTPClient) createURL(uri string) (*url.URL, error) {
 	path, err := url.Parse(uri)
 	if err != nil {
 		return nil, err
@@ -118,7 +118,7 @@ func (h *HttpClient) createURL(uri string) (*url.URL, error) {
 	return baseURL.ResolveReference(path), nil
 }
 
-func (h *HttpClient) decorateResponse(r *http.Response) error {
+func (h *HTTPClient) decorateResponse(r *http.Response) error {
 	for _, d := range h.responseDecorators {
 		e := d.decorate(r)
 		if e != nil {
@@ -128,7 +128,7 @@ func (h *HttpClient) decorateResponse(r *http.Response) error {
 	return nil
 }
 
-func (h *HttpClient) decorateRequest(r *http.Request) error {
+func (h *HTTPClient) decorateRequest(r *http.Request) error {
 	for _, d := range h.requestDecorators {
 		e := d.decorate(r)
 		if e != nil {
@@ -138,14 +138,14 @@ func (h *HttpClient) decorateRequest(r *http.Request) error {
 	return nil
 }
 
-func (h *HttpClient) Get(uri string) (*http.Response, error) {
-	requestUrl, err := h.createURL(uri)
+func (h *HTTPClient) Get(uri string) (*http.Response, error) {
+	requestedURL, err := h.createURL(uri)
 	if err != nil {
 		return nil, err
 	}
 	req := http.Request{
 		Method: http.MethodGet,
-		URL:    requestUrl,
+		URL:    requestedURL,
 		Header: http.Header{},
 	}
 
@@ -166,8 +166,8 @@ func (h *HttpClient) Get(uri string) (*http.Response, error) {
 	return resp, nil
 }
 
-func (h *HttpClient) Post(uri string, bodyBytes []byte) (*http.Response, error) {
-	requestUrl, err := h.createURL(uri)
+func (h *HTTPClient) Post(uri string, bodyBytes []byte) (*http.Response, error) {
+	requestedURL, err := h.createURL(uri)
 	if err != nil {
 		return nil, err
 	}
@@ -175,7 +175,7 @@ func (h *HttpClient) Post(uri string, bodyBytes []byte) (*http.Response, error) 
 	body := ioutil.NopCloser(bytes.NewBuffer(bodyBytes))
 	req := http.Request{
 		Method: http.MethodPost,
-		URL:    requestUrl,
+		URL:    requestedURL,
 		Body:   body,
 		Header: http.Header{},
 	}
@@ -247,12 +247,12 @@ func (r *responseBodyTranslator) decorate(resp *http.Response) error {
 	return nil
 }
 
-func NewResponseWrappingClient(httpClient *HttpClient) *ResponseWrappingClient {
+func NewResponseWrappingClient(httpClient *HTTPClient) *ResponseWrappingClient {
 	return &ResponseWrappingClient{httpClient}
 }
 
 type ResponseWrappingClient struct {
-	c *HttpClient
+	c *HTTPClient
 }
 
 func (r *ResponseWrappingClient) Get(uri string, target interface{}) *CommonError {

@@ -25,15 +25,15 @@ import (
 	"github.com/kataras/iris/v12/context"
 )
 
-func NewChassisReadingHandler(cm *db.ConnectionManager) context.Handler {
-	return (&chassisReadingHandler{cm}).handle
+func newGetChassisHandler(cm *db.ConnectionManager) context.Handler {
+	return (&getChassisHandler{cm}).handle
 }
 
-type chassisReadingHandler struct {
+type getChassisHandler struct {
 	cm *db.ConnectionManager
 }
 
-func (c *chassisReadingHandler) handle(ctx context.Context) {
+func (c *getChassisHandler) handle(ctx context.Context) {
 	requestedChassisOid := ctx.Request().RequestURI
 	chassis, err := c.cm.FindChassis(requestedChassisOid)
 	if err != nil {

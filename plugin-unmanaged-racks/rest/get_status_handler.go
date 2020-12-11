@@ -73,7 +73,7 @@ func (p pluginStatusController) getPluginStatus(ctx iris.Context) {
 	p.status.Refresh()
 	var resp = PluginStatusResponse{
 		Comment: "Unmanaged Racks Plugin",
-		Name:    _PLUGIN_NAME,
+		Name:    PluginName,
 		Version: p.pluginConfig.FirmwareVersion,
 		Status:  *p.status,
 	}

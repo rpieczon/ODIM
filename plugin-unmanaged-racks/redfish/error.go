@@ -123,7 +123,7 @@ func (e *CommonError) AddExtendedInfo(ei MsgExtendedInfo) *CommonError {
 	return e
 }
 
-func NewMalformedJsonMsg(errMsg string) MsgExtendedInfo {
+func NewMalformedJSONMsg(errMsg string) MsgExtendedInfo {
 	return MsgExtendedInfo{
 		OdataType:  "#Message.v1_0_8.Message",
 		MessageID:  MalformedJSON,
