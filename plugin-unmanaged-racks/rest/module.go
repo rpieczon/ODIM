@@ -32,14 +32,16 @@ import (
 
 const _PLUGIN_NAME = "URP"
 
-func InitializeAndRun(pluginConfiguration *config.PluginConfig, cm *db.ConnectionManager) {
+func InitializeAndRun(pluginConfiguration *config.PluginConfig) {
 
 	odimraHttpClient := redfish.NewHttpClient(
 		redfish.BaseURL(pluginConfiguration.OdimNBUrl),
 		redfish.HttpTransport(pluginConfiguration),
 	)
 
-	createApplication(pluginConfiguration, cm, odimraHttpClient).Run(
+	connectionManager := db.NewConnectionManager(pluginConfiguration.RedisAddress, pluginConfiguration.SentinelMasterName)
+
+	createApplication(pluginConfiguration, connectionManager, odimraHttpClient).Run(
 		func(app *iris.Application) error {
 			return app.NewHost(&http.Server{Addr: pluginConfiguration.Host + ":" + pluginConfiguration.Port}).
 				Configure(configureTls(pluginConfiguration)).
@@ -88,7 +90,7 @@ func createApiHandlersConfigurer(odimraHttpClient *redfish.HttpClient, cm *db.Co
 
 		basicAuthHandler := NewBasicAuthHandler(pluginConfig.UserName, pluginConfig.Password)
 
-		application.Post("/EventService/Events", newEventHandler(cm, pluginConfig.URLTranslation))
+		application.Post("/EventService/Events", newEventHandler(cm))
 
 		pluginRoutes := application.Party("/ODIM/v1")
 		pluginRoutes.Post("/Startup", basicAuthHandler, newStartupHandler(pluginConfig, odimraHttpClient))

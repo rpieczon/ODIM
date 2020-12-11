@@ -26,7 +26,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"strings"
 
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/config"
 )
@@ -86,16 +85,10 @@ func NewHttpClient(opts ...Option) *HttpClient {
 				u: "admin",
 				p: "Od!m12$4",
 			},
-			&requestTranslator{
-				old: "/ODIM/",
-				new: "/redfish/",
-			},
+			&requestTranslator{},
 		},
 		responseDecorators: []responseDecorator{
-			&responseBodyTranslator{
-				old: "/redfish/",
-				new: "/ODIM/",
-			},
+			&responseBodyTranslator{},
 		},
 	}
 
@@ -213,15 +206,13 @@ func (b *basicAuth) decorate(r *http.Request) error {
 	return nil
 }
 
-type requestTranslator struct {
-	old, new string
-}
+type requestTranslator struct{}
 
 func (r *requestTranslator) decorate(req *http.Request) error {
 	for k, hvs := range req.Header {
 		var translated []string
 		for _, v := range hvs {
-			translated = append(translated, strings.Replace(v, r.old, r.new, -1))
+			translated = append(translated, Translator.ODIMToRedfish(v))
 		}
 		req.Header[k] = translated
 	}
@@ -233,14 +224,12 @@ func (r *requestTranslator) decorate(req *http.Request) error {
 	if err != nil {
 		return err
 	}
-	translatedBody := strings.Replace(string(bodyBytes), r.old, r.new, -1)
+	translatedBody := Translator.ODIMToRedfish(string(bodyBytes))
 	req.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(translatedBody)))
 	return nil
 }
 
-type responseBodyTranslator struct {
-	old, new string
-}
+type responseBodyTranslator struct{}
 
 func (r *responseBodyTranslator) decorate(resp *http.Response) error {
 	dec := json.NewDecoder(resp.Body)
@@ -253,7 +242,7 @@ func (r *responseBodyTranslator) decorate(resp *http.Response) error {
 		return err
 	}
 
-	newBody := strings.Replace(string(*tempTarget), r.old, r.new, -1)
+	newBody := Translator.RedfishToODIM(string(*tempTarget))
 	resp.Body = ioutil.NopCloser(bytes.NewBuffer([]byte(newBody)))
 	return nil
 }

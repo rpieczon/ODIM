@@ -42,14 +42,6 @@ var TEST_CONFIG = config.PluginConfig{
 	Password:        "O01bKrP7Tzs7YoO3YvQt4pRa2J_R6HI34ZfP4MxbqNIYAVQVt2ewGXmhjvBfzMifM7bHFccXKGmdHvj3hY44Hw==",
 	FirmwareVersion: "0.0.0",
 	OdimNBUrl:       "https://localhost:45000",
-	URLTranslation: &config.URLTranslation{
-		NorthBoundURL: map[string]string{
-			"redfish": "ODIM",
-		},
-		SouthBoundURL: map[string]string{
-			"ODIM": "redfish",
-		},
-	},
 }
 
 func Test_secured_endpoints_return_401_when_unauthorized(t *testing.T) {

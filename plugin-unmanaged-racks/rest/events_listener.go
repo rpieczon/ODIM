@@ -22,7 +22,6 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/config"
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/db"
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/logging"
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/redfish"
@@ -32,18 +31,14 @@ import (
 	"github.com/kataras/iris/v12/context"
 )
 
-func newEventHandler(cm *db.ConnectionManager, translator *config.URLTranslation) context.Handler {
+func newEventHandler(cm *db.ConnectionManager) context.Handler {
 	return (&eventHandler{
 		cm: cm,
-		translator: &redfish.Translator{
-			Dictionaries: translator,
-		},
 	}).handleEvent
 }
 
 type eventHandler struct {
-	cm         *db.ConnectionManager
-	translator *redfish.Translator
+	cm *db.ConnectionManager
 }
 
 func (eh *eventHandler) handleEvent(c iris.Context) {
@@ -56,7 +51,7 @@ func (eh *eventHandler) handleEvent(c iris.Context) {
 	}
 
 	message := new(redfish.MessageData)
-	err = json.Unmarshal([]byte(eh.translator.RedfishToODIM(string(*raw))), message)
+	err = json.Unmarshal([]byte(redfish.Translator.RedfishToODIM(string(*raw))), message)
 	if err != nil {
 		c.StatusCode(http.StatusBadRequest)
 		_, _ = c.JSON(redfish.CreateError(redfish.GeneralError, err.Error()))
