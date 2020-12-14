@@ -18,13 +18,16 @@ package redfish
 
 import uuid "github.com/satori/go.uuid"
 
+// StatusEnabledOk is prototype of Redfish Status containing Enabled,OK values.
 var StatusEnabledOk = Status{
 	State:  "Enabled",
 	Health: "OK",
 }
 
+// PowerStateOn is an enum for Chassis.PowerState property
 var PowerStateOn = "On"
 
+// Chassis is representation of Redfish Chassis asset
 type Chassis struct {
 	Ocontext     string `json:"@odata.context"`
 	Oid          string `json:"@odata.id"`
@@ -42,6 +45,7 @@ type Chassis struct {
 	Status       Status `json:"Status"`
 }
 
+// ShapeChassis function initializes given struct(ch) with values for ids, odata related fields
 func ShapeChassis(ch *Chassis) *Chassis {
 	ch.Otype = "#Chassis.v1_14_0.Chassis"
 	ch.Ocontext = "/redfish/v1/$metadata#Chassis.Chassis"
@@ -59,12 +63,14 @@ func generateChassisID(name string) string {
 
 var unmanagedChassisBaseUUID = uuid.Must(uuid.FromString("1bde942f-36f3-4e92-9b3b-4e497092430d"))
 
+// Status is representation of Redfish Status
 type Status struct {
 	Health       string `json:"Health,omitempty"`
 	HealthRollup string `json:"HealthRollup,omitempty"`
 	State        string `json:"State,omitempty"`
 }
 
+// Links is representation of Redfish Chassis.Links
 type Links struct {
 	ComputerSystems []Link `json:""`
 	ManagedBy       []Link `json:""`

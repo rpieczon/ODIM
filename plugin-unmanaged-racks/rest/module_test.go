@@ -42,6 +42,7 @@ var testConfig = config.PluginConfig{
 	Password:        "O01bKrP7Tzs7YoO3YvQt4pRa2J_R6HI34ZfP4MxbqNIYAVQVt2ewGXmhjvBfzMifM7bHFccXKGmdHvj3hY44Hw==",
 	FirmwareVersion: "0.0.0",
 	OdimNBUrl:       "https://localhost:45000",
+	LogLevel:        "Debug",
 }
 
 func Test_secured_endpoints_return_401_when_unauthorized(t *testing.T) {
@@ -536,7 +537,7 @@ func createTestApplication() (*iris.Application, *miniredis.Miniredis) {
 		panic(err)
 	}
 
-	cm := db.NewConnectionManager(r.Addr(), "")
+	cm := db.CreateDAO(r.Addr(), "")
 
 	odimraHTTPClient := redfish.NewHTTPClient(
 		redfish.BaseURL(testConfig.OdimNBUrl),

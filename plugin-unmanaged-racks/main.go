@@ -20,11 +20,15 @@ import (
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/config"
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/logging"
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/rest"
+	"os"
 )
 
 var version = "dev"
 
 func main() {
+	if uid := os.Geteuid(); uid == 0 {
+		logging.Fatal("Plugin Service should not be run as the root user")
+	}
 	logging.Infof("Starting URP v%s", version)
 	if pluginConfiguration, err := config.ReadPluginConfiguration(); err != nil {
 		logging.Fatal("error while reading from config", err)

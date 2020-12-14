@@ -25,17 +25,17 @@ import (
 	"github.com/kataras/iris/v12/context"
 )
 
-func newGetChassisHandler(cm *db.ConnectionManager) context.Handler {
-	return (&getChassisHandler{cm}).handle
+func newGetChassisHandler(dao *db.DAO) context.Handler {
+	return (&getChassisHandler{dao}).handle
 }
 
 type getChassisHandler struct {
-	cm *db.ConnectionManager
+	dao *db.DAO
 }
 
 func (c *getChassisHandler) handle(ctx context.Context) {
 	requestedChassisOid := ctx.Request().RequestURI
-	chassis, err := c.cm.FindChassis(requestedChassisOid)
+	chassis, err := c.dao.FindChassis(requestedChassisOid)
 	if err != nil {
 		ctx.StatusCode(http.StatusInternalServerError)
 		ctx.JSON(redfish.CreateError(redfish.GeneralError, err.Error()))

@@ -30,8 +30,9 @@ import (
 	"github.com/kataras/iris/v12/middleware/logger"
 )
 
-const PluginName = "URP"
+const urpPluginName = "URP"
 
+// InitializeAndRun Initializes and runs Unamanged Racks Plugin
 func InitializeAndRun(pluginConfiguration *config.PluginConfig) {
 
 	odimraHTTPClient := redfish.NewHTTPClient(
@@ -39,9 +40,9 @@ func InitializeAndRun(pluginConfiguration *config.PluginConfig) {
 		redfish.HTTPTransport(pluginConfiguration),
 	)
 
-	connectionManager := db.NewConnectionManager(pluginConfiguration.RedisAddress, pluginConfiguration.SentinelMasterName)
+	dao := db.CreateDAO(pluginConfiguration.RedisAddress, pluginConfiguration.SentinelMasterName)
 
-	createApplication(pluginConfiguration, connectionManager, odimraHTTPClient).Run(
+	createApplication(pluginConfiguration, dao, odimraHTTPClient).Run(
 		func(app *iris.Application) error {
 			return app.NewHost(&http.Server{Addr: pluginConfiguration.Host + ":" + pluginConfiguration.Port}).
 				Configure(configureTLS(pluginConfiguration)).
@@ -66,8 +67,8 @@ func configureTLS(c *config.PluginConfig) host.Configurator {
 	}
 }
 
-func createApplication(pluginConfig *config.PluginConfig, cm *db.ConnectionManager, odimraHTTPClient *redfish.HTTPClient) *iris.Application {
-	return iris.New().Configure(createLoggersConfigurer(pluginConfig), createAPIHandlersConfigurer(odimraHTTPClient, cm, pluginConfig))
+func createApplication(pluginConfig *config.PluginConfig, dao *db.DAO, odimraHTTPClient *redfish.HTTPClient) *iris.Application {
+	return iris.New().Configure(createLoggersConfigurer(pluginConfig), createAPIHandlersConfigurer(odimraHTTPClient, dao, pluginConfig))
 }
 
 func createLoggersConfigurer(pluginConfig *config.PluginConfig) iris.Configurator {
@@ -75,22 +76,22 @@ func createLoggersConfigurer(pluginConfig *config.PluginConfig) iris.Configurato
 		//no startup log
 		app.Configure(iris.WithoutStartupLog)
 		//iris app attached to application logger
-		app.Logger().Install(logging.Logger())
+		app.Logger().Install(logging.GetLogger())
 		//iris app log level adjusted to configured one
 		app.Logger().SetLevel(pluginConfig.LogLevel)
 		//app log level adjusted to configured one
-		logging.Logger().SetLevel(pluginConfig.LogLevel)
+		logging.SetLogLevel(pluginConfig.LogLevel)
 		//enable request logger
 		app.Use(logger.New())
 	}
 }
 
-func createAPIHandlersConfigurer(odimraHTTPClient *redfish.HTTPClient, cm *db.ConnectionManager, pluginConfig *config.PluginConfig) iris.Configurator {
+func createAPIHandlersConfigurer(odimraHTTPClient *redfish.HTTPClient, dao *db.DAO, pluginConfig *config.PluginConfig) iris.Configurator {
 	return func(application *iris.Application) {
 
 		basicAuthHandler := newBasicAuthHandler(pluginConfig.UserName, pluginConfig.Password)
 
-		application.Post("/EventService/Events", newEventHandler(cm))
+		application.Post("/EventService/Events", newEventHandler(dao))
 
 		pluginRoutes := application.Party("/ODIM/v1")
 		pluginRoutes.Post("/Startup", basicAuthHandler, newStartupHandler(pluginConfig, odimraHTTPClient))
@@ -101,10 +102,10 @@ func createAPIHandlersConfigurer(odimraHTTPClient *redfish.HTTPClient, cm *db.Co
 		managers.Get("/{id}", newGetManagerHandler(pluginConfig))
 
 		chassis := pluginRoutes.Party("/Chassis", basicAuthHandler)
-		chassis.Get("", newGetChassisCollectionHandler(cm))
-		chassis.Get("/{id}", newGetChassisHandler(cm))
-		chassis.Delete("/{id}", newDeleteChassisHandler(cm))
-		chassis.Post("", newPostChassisHandler(cm, pluginConfig))
-		chassis.Patch("/{id}", newPatchChassisHandler(cm, odimraHTTPClient))
+		chassis.Get("", newGetChassisCollectionHandler(dao))
+		chassis.Get("/{id}", newGetChassisHandler(dao))
+		chassis.Delete("/{id}", newDeleteChassisHandler(dao))
+		chassis.Post("", newPostChassisHandler(dao, pluginConfig))
+		chassis.Patch("/{id}", newPatchChassisHandler(dao, odimraHTTPClient))
 	}
 }

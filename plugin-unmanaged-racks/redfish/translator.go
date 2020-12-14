@@ -20,6 +20,9 @@ import (
 	"strings"
 )
 
+// Translator provides ODIMRA|URP API related keywords.
+// URP plugin exposes its endpoints(/ODIM/v1/*) in different domain than ODIMRA(/redfish/v1/*),
+// this static translator instance translates keywords between domains.
 var Translator = &translator{
 	r20: map[string]string{
 		"redfish": "ODIM",

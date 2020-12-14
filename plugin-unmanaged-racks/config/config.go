@@ -90,8 +90,7 @@ func validate(pc *PluginConfig) error {
 	}
 
 	if pc.FirmwareVersion == "" {
-		pc.FirmwareVersion = "1.0"
-		logging.Warnf("no value set for FirmwareVersion, setting default: %s", pc.FirmwareVersion)
+		return fmt.Errorf("no value set for FirmwareVersion, setting default: %s", pc.FirmwareVersion)
 	}
 
 	if pc.RootServiceUUID == "" {

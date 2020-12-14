@@ -30,6 +30,8 @@ import (
 	"github.com/ODIM-Project/ODIM/plugin-unmanaged-racks/config"
 )
 
+// HTTPClient is an client for communication with redfish service.
+// In case of URP, it it used for calling ODIMRA's REST API.
 type HTTPClient struct {
 	baseURL            string
 	httpc              *http.Client
@@ -37,15 +39,18 @@ type HTTPClient struct {
 	responseDecorators []responseDecorator
 }
 
-type Option func(rc *HTTPClient)
+// HTTPClientOption is interface of configuration option for HTTPClient
+type HTTPClientOption func(rc *HTTPClient)
 
-func BaseURL(baseURL string) Option {
+// BaseURL configures HTTPClient by setting base URL
+func BaseURL(baseURL string) HTTPClientOption {
 	return func(rc *HTTPClient) {
 		rc.baseURL = baseURL
 	}
 }
 
-// InsecureSkipVerifyTransport function is intended to be used only in tests!!!
+// InsecureSkipVerifyTransport configures HTTPClient with insecure transport(skips certificate verification)
+// It is intended to be used only in tests!!!
 func InsecureSkipVerifyTransport(c *HTTPClient) {
 	c.httpc.Transport = &http.Transport{
 		TLSClientConfig: &tls.Config{
@@ -54,7 +59,8 @@ func InsecureSkipVerifyTransport(c *HTTPClient) {
 	}
 }
 
-func HTTPTransport(c *config.PluginConfig) Option {
+// HTTPTransport configures HTTPClient by setting secure TLS transport
+func HTTPTransport(c *config.PluginConfig) HTTPClientOption {
 	return func(rc *HTTPClient) {
 		caCert, err := ioutil.ReadFile(c.PKIRootCAPath)
 		if err != nil {
@@ -77,7 +83,9 @@ func HTTPTransport(c *config.PluginConfig) Option {
 	}
 }
 
-func NewHTTPClient(opts ...Option) *HTTPClient {
+// NewHTTPClient creates new instance of HTTPClient.
+// Returned clients is configured regarding to provided configuration options(opts)
+func NewHTTPClient(opts ...HTTPClientOption) *HTTPClient {
 	c := &HTTPClient{
 		httpc: &http.Client{},
 		requestDecorators: []requestDecorator{
@@ -138,6 +146,7 @@ func (h *HTTPClient) decorateRequest(r *http.Request) error {
 	return nil
 }
 
+// Get executes GET operation against requested endpoint
 func (h *HTTPClient) Get(uri string) (*http.Response, error) {
 	requestedURL, err := h.createURL(uri)
 	if err != nil {
@@ -166,6 +175,8 @@ func (h *HTTPClient) Get(uri string) (*http.Response, error) {
 	return resp, nil
 }
 
+// Post executes POST operation against requested endpoint
+// Executed POST request carries provided body.
 func (h *HTTPClient) Post(uri string, bodyBytes []byte) (*http.Response, error) {
 	requestedURL, err := h.createURL(uri)
 	if err != nil {
@@ -247,14 +258,17 @@ func (r *responseBodyTranslator) decorate(resp *http.Response) error {
 	return nil
 }
 
-func NewResponseWrappingClient(httpClient *HTTPClient) *ResponseWrappingClient {
-	return &ResponseWrappingClient{httpClient}
-}
-
+// ResponseWrappingClient is a wrapper for HTTPClient. Intentionally it wraps raw `http.Response` into Redfish entity.
 type ResponseWrappingClient struct {
 	c *HTTPClient
 }
 
+// NewResponseWrappingClient creates new instance of ResponseWrappingClient
+func NewResponseWrappingClient(httpClient *HTTPClient) *ResponseWrappingClient {
+	return &ResponseWrappingClient{httpClient}
+}
+
+// Get executes GET operation, wraps response into `target`, in case of any error CommonError is returned.
 func (r *ResponseWrappingClient) Get(uri string, target interface{}) *CommonError {
 	rsp, err := r.c.Get(uri)
 	if err != nil {
